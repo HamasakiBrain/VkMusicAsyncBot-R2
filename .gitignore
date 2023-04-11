@@ -1,0 +1,6 @@
+*.pyc
+*.sqlite
+*.zip
+env/
+cache/
+config.json
