@@ -1,22 +1,29 @@
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.exceptions import MessageNotModified, BotBlocked, InvalidQueryID
-from objects.globals import dispatcher, logger, musicapi
+from objects.globals import dispatcher, logger, musicapi, config, bot
+from aiogram.utils import markdown
 from objects import globals
 from modules import database
 from modules.utils import convert_from_seconds, paginate
+
+chat_id_channel = config["channel_chat_id"]
+bot_token = config["telegram_token"]
 
 @dispatcher.message_handler(lambda message: message.text == "🎧 ВК")
 async def vk_command(message: Message):
     globals.add_usage_stats()
     try:
-        await globals.CompleteCache.create_user(message.from_user.id)
+        await database.create_user(message.from_user.id)
+
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
-
-        await message.reply("Отправьте мне ссылку на профиль из форматов:\n"
-                            "```https://vk.com/id1```\n"
-                            "```https://vk.com/durov```\n"
-                            "❗️ ***Важно! Аудиозаписи должны быть открыты!***", reply_markup=markup, reply=True)
+           
+        await message.reply(markdown.escape_md(
+                f"Отправьте мне ссылку на профиль из форматов:\n"
+                f"```https://vk.com/id1```\n"
+                f"```https://vk.com/durov```\n"
+                f"❗️ ***Важно! Аудиозаписи должны быть открыты!***"), reply_markup=markup, reply=True
+                )
                             
     except (MessageNotModified, BotBlocked, InvalidQueryID): pass
     except Exception as e:
@@ -26,7 +33,7 @@ async def vk_command(message: Message):
 async def vk_page(message: Message):
     globals.add_usage_stats()
     try:
-        await globals.CompleteCache.create_user(message.from_user.id)
+        await database.create_user(message.from_user.id)
 
         separated = message.text.split(".com/")
         if len(separated) != 2:
@@ -74,7 +81,7 @@ async def vk_page(message: Message):
 async def vk_page_next(query: CallbackQuery):
     globals.add_usage_stats()
     try:
-        await globals.CompleteCache.create_user(query.from_user.id)
+        await database.create_user(query.from_user.id)
 
         globals.cache_user_page(query.from_user.id, query.data)
 
@@ -114,7 +121,7 @@ async def vk_page_next(query: CallbackQuery):
 async def vk_page_back(query: CallbackQuery):
     globals.add_usage_stats()
     try:
-        await globals.CompleteCache.create_user(query.from_user.id)
+        await database.create_user(query.from_user.id)
 
         globals.cache_user_page(query.from_user.id, query.data)
 

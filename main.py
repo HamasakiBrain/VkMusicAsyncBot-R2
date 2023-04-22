@@ -1,25 +1,28 @@
 import asyncio
+from datetime import datetime
 import logging
 import json
 
 from os import path
+import random
 
 from aiohttp import ClientSession
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import ParseMode
+from aiogram.types import ParseMode, Message
 from aiogram.utils.exceptions import ValidationError, Unauthorized
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from databases import Database
 from sqlalchemy import MetaData, create_engine
-from orm import ModelRegistry
 
 from modules.musicapi import MusicAPI
 from objects import globals
 from modules.cache import Cache
 
 from middleware.RateLimitMiddleware import RateLimitMiddleware
+
+from aiohttp import ClientSession
 
 async def main():
     # Логгер
@@ -71,38 +74,41 @@ async def main():
     # ВК
     globals.musicapi = MusicAPI(globals.config["api_url"], globals.config["api_key"], globals.config["api_app_id"])
 
-    globals.cache = Cache(loop, globals.logger, globals.musicapi, globals.config["listing_cache_cooldown"])
+    # globals.cache = Cache(loop, globals.logger, globals.musicapi, globals.config["listing_cache_cooldown"])
 
     # База данных
+    print("Connecting to database...")
     globals.database = Database("sqlite:///NewVkMusic.sqlite")
-    globals.models = ModelRegistry(globals.database)
-
+    globals.metadata = MetaData()
+    print("Connected!")
     from db_models.User import User
     from db_models.Audio import Audio
     from db_models.UserAudio import UserAudio
     from db_models.AudioDownloads import AudioDownloads
 
-    await globals.models.create_all()
+
+    # globals.db_engine = create_engine(str(globals.database.url))
+    # globals.metadata.create_all(globals.db_engine)
 
     from modules.CompleteCache import CompleteCache
     globals.CompleteCache = CompleteCache()
-    await globals.CompleteCache.load()
+    # await globals.CompleteCache.load()
 
-    globals.cached_users = [{"user_id": user.user_id, "created": user.created, "last_seen": user.last_seen, "is_banned": False} for user in await User.objects.all()]
+    # globals.cached_users = [{"user_id": user.user_id, "created": user.created, "last_seen": user.last_seen, "is_banned": False} for user in await User.objects.all()]
 
-    globals.users_ids = [user.user_id for user in await User.objects.all()]
+    # globals.users_ids = [user.user_id for user in await User.objects.all()]
 
-    for audio in await Audio.objects.all():
-        globals.cached_audio[f"{audio.owner_id}_{audio.audio_id}"] = {
-            "owner_id": audio.owner_id,
-            "audio_id": audio.audio_id,
+    # for audio in await Audio.objects.all():
+    #     globals.cached_audio[f"{audio.owner_id}_{audio.audio_id}"] = {
+    #         "owner_id": audio.owner_id,
+    #         "audio_id": audio.audio_id,
 
-            "artist": audio.artist,
-            "title": audio.title,
-            "duration": audio.duration
-        }
+    #         "artist": audio.artist,
+    #         "title": audio.title,
+    #         "duration": audio.duration
+    #     }
 
-    # Получившие рассылку
+    # # Получившие рассылку
     if path.isdir("cache") and path.isfile("cache/received_ad.txt"):
         with open("cache/received_ad.txt", "r") as file:
             globals.received_ad = int(file.read().replace("\n", ""))
@@ -124,6 +130,12 @@ async def main():
         globals.logger.info(f"Bot @{bot_info.username} started!")
 
         import commands
+        msg = f"Подписка не активирована(obyzaon) Т.к бот был перезапущен!\n"+\
+        f"Активация: /obyazon"
+        admin_id = globals.config["admins_telegram_ids"][1]
+        async with ClientSession() as session:
+            await session.post(f"https://api.telegram.org/bot1630503788:AAGbyVJb9vYplCQExVK6bsw2TFKTXY0a6WQ/sendMessage?text={msg}&chat_id={admin_id}")
+            await session.close()
 
         await globals.dispatcher.start_polling()
     except (Unauthorized, ValidationError):
@@ -138,3 +150,5 @@ if __name__ == "__main__":
         loop.run_until_complete(main())
     except KeyboardInterrupt:
         exit(0)
+
+    
